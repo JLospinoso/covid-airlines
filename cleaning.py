@@ -3,11 +3,16 @@ import itertools
 import pandas as pd
 import datetime
 
+
 def get_state_lookup(path="states.csv"):
     return {x['State']: x['Code'] for x in csv.DictReader(open(path))}
 
 
 def get_vaccinations(path="vaccinations.csv"):
+    return csv.DictReader(open(path))
+
+
+def get_infections(path="infections.csv"):
     return csv.DictReader(open(path))
 
 
@@ -40,13 +45,47 @@ def format_str_to_float(x):
 state = get_state_lookup()
 states = state.values()
 
+infections = {x: {
+    'year': x[0],
+    'quarter': x[1],
+    'state': x[2],
+    'n_deaths': 0,
+    'n_cases': 0,
+    # 'population_size': 0
+} for x in itertools.product([2020, 2021], [1, 2, 3, 4], states)}
+
+
+for entry in get_infections():
+    state = entry['state']
+    if state not in states:
+        continue
+    date = datetime.datetime.strptime(entry['submission_date'], '%m/%d/%Y')
+    year = date.year
+    if date.month == 3:
+        quarter = 1
+    elif date.month == 6:
+        quarter = 2
+    elif date.month == 9:
+        quarter = 3
+    elif date.month == 12:
+        quarter = 4
+    else:
+        continue
+    key = (year, quarter, state)
+    deaths = format_str_to_int(entry['tot_death'])
+    infections[key]['n_deaths'] += deaths
+    n_cases = format_str_to_int(entry['tot_cases'])
+    infections[key]['n_cases'] += n_cases
+
+infections_df = pd.DataFrame(infections.values())
+
 vaccinations = {x: {
     'year': x[0],
     'quarter': x[1],
     'state': x[2],
     'n_vaccinated': 0,
     'n_fully_vaccinated': 0,
-    'population_size': 0
+    # 'population_size': 0
 } for x in itertools.product([2020, 2021], [1, 2, 3, 4], states)}
 
 for entry in get_vaccinations():
@@ -66,11 +105,12 @@ for entry in get_vaccinations():
     else:
         continue
     key = (year, quarter, state)
-    vaccinations[key]['n_fully_vaccinated'] += format_str_to_int(entry['Series_Complete_Yes'])
+    fully_vaccinated = format_str_to_int(entry['Series_Complete_Yes'])
+    vaccinations[key]['n_fully_vaccinated'] = fully_vaccinated
     dose_1 = format_str_to_int(entry['Administered_Dose1_Recip'])
-    vaccinations[key]['n_vaccinated'] += dose_1
-    percent = format_str_to_float(entry['Administered_Dose1_Pop_Pct']) / 100
-    vaccinations[key]['population_size'] += dose_1 / percent if percent else dose_1
+    vaccinations[key]['n_vaccinated'] = dose_1
+    # percent = format_str_to_float(entry['Administered_Dose1_Pop_Pct']) / 100
+    # vaccinations[key]['population_size'] += dose_1 / percent if percent else dose_1
 
 
 vaccinations_df = pd.DataFrame(vaccinations.values())
