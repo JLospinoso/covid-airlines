@@ -1,0 +1,6 @@
+*.csv filter=lfs diff=lfs merge=lfs -text
+United_States_COVID-19_Cases_and_Deaths_by_State_over_Time.csv filter=lfs diff=lfs merge=lfs -text
+airlines.csv filter=lfs diff=lfs merge=lfs -text
+state-population.csv filter=lfs diff=lfs merge=lfs -text
+states.csv filter=lfs diff=lfs merge=lfs -text
+vaccinations.csv filter=lfs diff=lfs merge=lfs -text
