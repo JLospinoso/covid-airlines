@@ -78,6 +78,8 @@ for entry in get_population():
         offset += increment
 
 populations_df = pd.DataFrame(populations.values())
+with open('populations-out.csv', 'w') as f:
+    populations_df.to_csv(f)
 
 cases = {x: {
     'year': x[0],
@@ -118,6 +120,8 @@ for key in cases:
     cases[key]['increase_cases'] = cases[key]['n_cases'] - cases[lagged]['n_cases']
 
 cases_df = pd.DataFrame(cases.values())
+with open('cases-out.csv', 'w') as f:
+    cases_df.to_csv(f)
 
 
 vaccinations = {x: {
@@ -152,6 +156,8 @@ for entry in get_vaccinations():
 
 
 vaccinations_df = pd.DataFrame(vaccinations.values())
+with open('vaccinations-out.csv', 'w') as f:
+    vaccinations_df.to_csv(f)
 
 travel = {x: {
     'year': x[0],
@@ -185,6 +191,8 @@ for entry in get_airline():
 print(f'Ignored {ignored} airline travel reports totaling {ignored_passengers} passengers.')
 
 travel_data_df = pd.DataFrame(travel.values())
+with open('travel-out.csv', 'w') as f:
+    travel_data_df.to_csv(f)
 
 panel = {x: {
     'year': x[0],
@@ -215,6 +223,8 @@ for entry in panel:
         panel[entry]['aggregate_inbound_deaths'] += passengers_from_source * alter_panel['d_covid_deaths'] / alter_panel['population']
 
 panel_df = pd.DataFrame(panel.values())
+with open('panel.csv', 'w') as f:
+    panel_df.to_csv(f)
 
 
 with pd.ExcelWriter('covid-airline.xlsx') as writer:
@@ -223,6 +233,3 @@ with pd.ExcelWriter('covid-airline.xlsx') as writer:
     populations_df.to_excel(writer, sheet_name='Populations')
     travel_data_df.to_excel(writer, sheet_name='Travel')
     vaccinations_df.to_excel(writer, sheet_name='Vaccinations')
-
-with open('panel.csv', 'w') as f:
-    panel_df.to_csv(f)
