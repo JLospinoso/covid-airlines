@@ -3,6 +3,7 @@ import itertools
 import pandas as pd
 import datetime
 import networkx as nx
+import json
 
 
 def get_state_lookup(path="states.csv"):
@@ -264,3 +265,13 @@ with pd.ExcelWriter('covid-airline.xlsx') as writer:
     vaccinations_df.to_excel(writer, sheet_name='Vaccinations')
     centralities_df.to_excel(writer, sheet_name='Centralities')
 
+network_data = {}
+for year, quarter in itertools.product([2020, 2021], [1, 2, 3, 4]):
+    key = (year, quarter, state)
+    network_data[f'{quarter}Q {year}'] = {
+        'nodes': panel[key],
+        'edges': [travel[(year, quarter, x[0], x[1])] for x in itertools.product(states, states) if x[0] != x[1]]
+    }
+
+with open("network-data.json", 'w') as f:
+    json.dump(network_data, f)
