@@ -269,7 +269,7 @@ network_data = {}
 for year, quarter in itertools.product([2020, 2021], [1, 2, 3, 4]):
     key = (year, quarter, state)
     network_data[f'{quarter}Q {year}'] = {
-        'nodes': panel[key],
+        'nodes': [panel[(year, quarter, x)] for x in states],
         'edges': [travel[(year, quarter, x[0], x[1])] for x in itertools.product(states, states) if x[0] != x[1]]
     }
 

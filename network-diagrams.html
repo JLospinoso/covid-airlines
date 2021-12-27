@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Network Diagrams - CDC/DOT Mashup</title>
+</head>
+<style>
+    .node {
+        fill: #4F442B;
+    }
+
+    .link {
+        stroke: #93C464;
+    }
+</style>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.2.8/d3.min.js" type="text/JavaScript"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<body>
+    <div class="container-fluid">
+        <div class="row justify-content-md-center">
+            <h1>CDC/DOT Data Mashup Summary</h1>
+        </div>
+        <br/>
+        <div id="viz" class="row justify-content-md-center">
+            <svg style="width:600px;height:600px;" ></svg>
+        </div>
+        <div class="row justify-content-md-center col-sm-8 offset-sm-2">
+
+            <label for="quarterSelector" id="quarterSelectorLabel">1Q 2020</label>
+            <input type="range" class="custom-range" min="0" max="7" step="1" value="0" id="quarterSelector" oninput="update(this.value)">
+        </div>
+    </div>
+</body>
+<script>
+    const time_lookup = ["1Q 2020", "2Q 2020", "3Q 2020", "4Q 2020", "1Q 2021", "2Q 2021", "3Q 2021", "4Q 2021"];
+    let time = time_lookup[0];
+    let data = null;
+
+    function update(x) {
+        time = time_lookup[x];
+        document.getElementById("quarterSelectorLabel").textContent = time;
+
+        Promise
+            .all([
+                PromiseWrapper("network-data.json")
+            ])
+            .then(x => createForceLayout(x[0]));
+    }
+
+    const PromiseWrapper = d => new Promise(resolve => d3.json(d, p => resolve(p)));
+
+    function createForceLayout(x) {
+        console.log("Laying out " + time)
+        const network = x[time];
+        const nodes = network["nodes"];
+        const edges = network["edges"];
+        const nodeHash = {};
+        nodes.forEach(node => {
+            nodeHash[node.state] = node;
+        });
+
+        edges.forEach(edge => {
+            edge.weight = edge.passengers_per_day;
+            edge.source = nodeHash[edge.source];
+            edge.target = nodeHash[edge.dest];
+        });
+
+        const linkForce = d3.forceLink();
+
+        const simulation = d3.forceSimulation()
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter().x(300).y(300))
+            .force("link", linkForce)
+            .nodes(nodes)
+            .on("tick", forceTick);
+
+        simulation.force("link").links(edges);
+
+        d3.select("svg").remove();
+        d3.select("#viz").append("svg").style("width", "600px").style("height", "600px");
+
+        d3.select("svg").selectAll("line.link")
+            .data(edges, d => `${d.source.state}-${d.target.state}`)
+            .enter()
+            .append("line")
+            .attr("class", "link")
+            .style("opacity", .5)
+            .style("stroke-width", d => d.weight / 5000);
+
+        var nodeEnter = d3.select("svg").selectAll("g.node")
+            .data(nodes, d => d.state)
+            .enter()
+            .append("g")
+            .attr("class", "node");
+        nodeEnter.append("circle")
+            .attr("r", d => d.population / 5000000)
+            .style("fill", "#75739F");
+        nodeEnter.append("circle")
+            .attr("r", d => d.d_covid_cases / 5000000)
+            .style("fill", "#9f7388");
+        nodeEnter.append("text")
+            .style("text-anchor", "middle")
+            .attr("y", 15)
+            .text(d => d.state);
+
+        function forceTick() {
+            d3.selectAll("line.link")
+                .attr("x1", d => d.source.x)
+                .attr("x2", d => d.target.x)
+                .attr("y1", d => d.source.y)
+                .attr("y2", d => d.target.y);
+            d3.selectAll("g.node")
+                .attr("transform", d => `translate(${d.x},${d.y})`);
+        }
+    }
+
+    window.onload = function() {
+        update(document.getElementById("quarterSelector").value);
+    }
+</script>
+</html>
+
