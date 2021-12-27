@@ -2,6 +2,7 @@ import csv
 import itertools
 import pandas as pd
 import datetime
+import networkx as nx
 
 
 def get_state_lookup(path="states.csv"):
@@ -194,6 +195,31 @@ travel_data_df = pd.DataFrame(travel.values())
 with open('travel-out.csv', 'w') as f:
     travel_data_df.to_csv(f)
 
+graphs = {}
+centralities = {}
+for year, quarter in itertools.product([2020, 2021], [1, 2, 3, 4]):
+    graphs[(year, quarter)] = nx.DiGraph()
+    graphs[(year, quarter)].add_nodes_from(states)
+    for i, j in itertools.product(states, states):
+        if i == j or travel[(year, quarter, i, j)]['passengers_per_day'] <= 0:
+            continue
+        weight = travel[(year, quarter, i, j)]['passengers_per_day']
+        graphs[(year, quarter)].add_edge(i, j, weight=weight)
+    ev_centrality = nx.eigenvector_centrality(graphs[(year, quarter)], weight='weight', max_iter=100000)
+    between = nx.betweenness_centrality(graphs[(year, quarter)], weight='weight')
+
+    for state in states:
+        centralities[(year, quarter, state)] = {
+            "year": year,
+            "quarter": quarter,
+            "state": state,
+            "eigenvector": ev_centrality[state],
+            "betweenness": between[state]
+        }
+centralities_df = pd.DataFrame(centralities.values())
+with open('centralities-out.csv', 'w') as f:
+    centralities_df.to_csv(f)
+
 panel = {x: {
     'year': x[0],
     'quarter': x[1],
@@ -203,6 +229,10 @@ panel = {x: {
     'covid_deaths': cases[x]['n_deaths'],
     'd_covid_cases': cases[x].get('increase_cases'),
     'd_covid_deaths': cases[x].get('increase_deaths'),
+    'vaccinated': vaccinations[x]['n_vaccinated'],
+    'fully_vaccinated': vaccinations[x]['n_fully_vaccinated'],
+    'eigenvector_centrality': centralities[x]['eigenvector'],
+    'betweenness_centrality': centralities[x]['betweenness'],
 } for x in itertools.product([2020, 2021], [1, 2, 3, 4], states) if x[2]}
 
 
@@ -223,9 +253,8 @@ for entry in panel:
         panel[entry]['aggregate_inbound_deaths'] += passengers_from_source * alter_panel['d_covid_deaths'] / alter_panel['population']
 
 panel_df = pd.DataFrame(panel.values())
-with open('panel.csv', 'w') as f:
+with open('panel-out.csv', 'w') as f:
     panel_df.to_csv(f)
-
 
 with pd.ExcelWriter('covid-airline.xlsx') as writer:
     cases_df.to_excel(writer, sheet_name='Cases')
@@ -233,3 +262,5 @@ with pd.ExcelWriter('covid-airline.xlsx') as writer:
     populations_df.to_excel(writer, sheet_name='Populations')
     travel_data_df.to_excel(writer, sheet_name='Travel')
     vaccinations_df.to_excel(writer, sheet_name='Vaccinations')
+    centralities_df.to_excel(writer, sheet_name='Centralities')
+
